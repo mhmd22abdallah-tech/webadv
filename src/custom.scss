@@ -1,0 +1,10 @@
+@import "bootstrap/scss/functions";
+@import "bootstrap/scss/variables";
+
+$bg-primary: #275a87;
+.bg{
+    background-color: #275a87
+}
+
+// Import Bootstrap with modified variables
+@import "bootstrap/scss/bootstrap";
