@@ -2,12 +2,15 @@ import React, { useState } from "react";
 import { FaAngleUp, FaAngleDown } from "react-icons/fa";
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
+import { ordersAPI, getToken } from "../services/api";
+import Swal from "sweetalert2";
 
 function Checkout({setOrder}) {
     const [billiningToggle, setBillingToggle] = useState(true);
     const [shippingToggle, setShippingToggle] = useState(false);
     const [paymentToggle, setPaymentToggle] = useState(false);
     const [paymentMethod, setPaymentMethod] = useState('cod');
+    const [loading, setLoading] = useState(false);
     const cart = useSelector(state => state.cart);
     const [shippingInfo, setShippingInfo] = useState({
         address: '',
@@ -15,18 +18,97 @@ function Checkout({setOrder}) {
         zip: ''
     });
     const navigate=useNavigate()
-    function handleOrder(){
-       const newOrder = {
-            products:cart.products,
-            totalPrice:cart.totalPrice,
-            orderNumber:"12344",
-            shippingInformation: shippingInfo
-
-
+    
+    async function handleOrder(e){
+        e.preventDefault();
+        
+        // Check if user is logged in
+        if (!getToken()) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Login Required',
+                text: 'Please login to place an order',
+                confirmButtonText: 'Go to Login'
+            }).then(() => {
+                navigate('/login');
+            });
+            return;
         }
-        console.log("Placing Order:", newOrder);
-        setOrder(newOrder)
-        setTimeout(() => navigate('/order-confirmation'), 100);
+
+        // Validate shipping info
+        if (!shippingInfo.address || !shippingInfo.city || !shippingInfo.zip) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Missing Information',
+                text: 'Please fill in all shipping information'
+            });
+            return;
+        }
+
+        if (cart.products.length === 0) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Empty Cart',
+                text: 'Your cart is empty'
+            });
+            return;
+        }
+
+        setLoading(true);
+
+        try {
+            // Prepare order data for backend
+            const orderData = {
+                products: cart.products.map(product => ({
+                    productId: product.id,
+                    quantity: product.quantity
+                })),
+                shippingAddress: shippingInfo.address,
+                shippingCity: shippingInfo.city,
+                shippingZip: shippingInfo.zip,
+                paymentMethod: paymentMethod === 'dc' ? 'debit_card' : 'cod'
+            };
+
+            const response = await ordersAPI.create(orderData);
+            
+            if (response.success) {
+                // Map backend order to frontend format
+                const newOrder = {
+                    products: response.order.items.map(item => ({
+                        id: item.product_id,
+                        name: item.product_name,
+                        image: item.image_url,
+                        price: parseFloat(item.price),
+                        quantity: item.quantity
+                    })),
+                    totalPrice: parseFloat(response.order.total_price),
+                    orderNumber: response.order.order_number,
+                    shippingInformation: {
+                        address: response.order.shipping_address,
+                        city: response.order.shipping_city,
+                        zip: response.order.shipping_zip
+                    }
+                };
+                
+                setOrder(newOrder);
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Order Placed!',
+                    text: 'Your order has been placed successfully',
+                    timer: 2000,
+                    showConfirmButton: false
+                });
+                setTimeout(() => navigate('/order-confirmation'), 100);
+            }
+        } catch (error) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Order Failed',
+                text: error.message || 'Failed to place order. Please try again.'
+            });
+        } finally {
+            setLoading(false);
+        }
     }
 
     return (
@@ -139,7 +221,13 @@ function Checkout({setOrder}) {
                                 <span>Total Price:</span>
                                 <span className="fw-bold">$ {cart.totalPrice.toFixed(2)}</span>
                             </div>
-                            <button className="btn btn-danger w-100 mt-3" onClick={handleOrder}>Place Order</button>
+                            <button 
+                                className="btn btn-danger w-100 mt-3" 
+                                onClick={handleOrder}
+                                disabled={loading}
+                            >
+                                {loading ? "Placing Order..." : "Place Order"}
+                            </button>
                         </div>
                     </div>
                 </div>

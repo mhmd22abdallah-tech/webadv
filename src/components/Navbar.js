@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import 'bootstrap/dist/css/bootstrap.min.css';
 import 'bootstrap/dist/js/bootstrap.bundle.min'; // Ensures Bootstrap JS functions work
 import { Link, useNavigate } from "react-router-dom"; // Import Link from react-router-dom
@@ -7,13 +7,33 @@ import logo from "../images/logo.svg";
 import { Categories } from "../assests/mockData";
 import { useDispatch, useSelector } from "react-redux";
 import { setSearchTerm } from "../redux/productSlice";
+import { authAPI } from "../services/api";
+import Swal from "sweetalert2";
 
-function Navbar({ isLoggedIn }) {
+function Navbar({ isLoggedIn, setIsLoggedIn }) {
     const [pages, setPages] = useState(false);
     const [menu, setMenu] = useState(false);
     const [search, setSearch] = useState();
+    const [userRole, setUserRole] = useState(null);
     const dispatch = useDispatch();
     const navigate = useNavigate();
+
+    useEffect(() => {
+        if (isLoggedIn) {
+            checkUserRole();
+        }
+    }, [isLoggedIn]);
+
+    const checkUserRole = async () => {
+        try {
+            const response = await authAPI.getCurrentUser();
+            if (response.success) {
+                setUserRole(response.user.role);
+            }
+        } catch (error) {
+            console.error('Error fetching user role:', error);
+        }
+    };
 
     function handleClickMenu() {
         setMenu(!menu);
@@ -30,6 +50,31 @@ function Navbar({ isLoggedIn }) {
         dispatch(setSearchTerm(search));
         navigate('/filter-data');
     }
+
+    const handleLogout = () => {
+        Swal.fire({
+            title: 'Logout?',
+            text: 'Are you sure you want to logout?',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#dc3545',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: 'Yes, logout'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                authAPI.logout();
+                setIsLoggedIn(false);
+                navigate('/');
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Logged Out',
+                    text: 'You have been logged out successfully',
+                    timer: 2000,
+                    showConfirmButton: false
+                });
+            }
+        });
+    };
 
     return (
         <>
@@ -60,14 +105,35 @@ function Navbar({ isLoggedIn }) {
                             </div>
                             <div className="col-md-3">
                                 <div className="user">
-                                    <div className="d-flex justify-content-end ">
-                                        <Link
-                                            to={isLoggedIn ? "/login" : "/register"}
-                                            className="dropdown-item text-white"
-                                            style={{ fontWeight: 'bold', fontSize: '16px' }}
-                                        >
-                                            {isLoggedIn ? "Login" : "Register"}
-                                        </Link>
+                                    <div className="d-flex justify-content-end align-items-center gap-3">
+                                        {isLoggedIn ? (
+                                            <>
+                                                {userRole === 'admin' && (
+                                                    <Link
+                                                        to="/admin"
+                                                        className="text-white text-decoration-none"
+                                                        style={{ fontWeight: 'bold', fontSize: '16px' }}
+                                                    >
+                                                        Admin
+                                                    </Link>
+                                                )}
+                                                <button
+                                                    onClick={handleLogout}
+                                                    className="btn btn-link text-white text-decoration-none"
+                                                    style={{ fontWeight: 'bold', fontSize: '16px', border: 'none', padding: 0 }}
+                                                >
+                                                    Logout
+                                                </button>
+                                            </>
+                                        ) : (
+                                            <Link
+                                                to="/login"
+                                                className="text-white text-decoration-none"
+                                                style={{ fontWeight: 'bold', fontSize: '16px' }}
+                                            >
+                                                Login
+                                            </Link>
+                                        )}
 
                                         <Link to="/cart" style={{ position: 'relative' }} className="text-decoration-none text-danger">
                                             <FaShoppingCart className="fs-0 text-white" style={{ fontSize: '22px' }} />

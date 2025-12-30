@@ -1,8 +1,90 @@
 import React, { useState } from "react";
 import logo from "../images/logo.svg";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { authAPI } from "../services/api";
+import Swal from "sweetalert2";
 
 function Login({ setIsLoggedIn, isLoggedIn }) {
+    const [username, setUsername] = useState("");
+    const [email, setEmail] = useState("");
+    const [password, setPassword] = useState("");
+    const [confirmPassword, setConfirmPassword] = useState("");
+    const [phone, setPhone] = useState("");
+    const [loading, setLoading] = useState(false);
+    const navigate = useNavigate();
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+
+        try {
+            if (isLoggedIn) {
+                // Login
+                const response = await authAPI.login(username, password);
+                if (response.success) {
+                    setIsLoggedIn(true);
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Login Successful!',
+                        text: 'Welcome back!',
+                        timer: 2000,
+                        showConfirmButton: false
+                    });
+                    navigate("/");
+                }
+            } else {
+                // Register
+                if (password !== confirmPassword) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: 'Passwords do not match!'
+                    });
+                    setLoading(false);
+                    return;
+                }
+
+                const response = await authAPI.register({
+                    username,
+                    email,
+                    password,
+                    phone: phone || undefined
+                });
+
+                if (response.success) {
+                    setIsLoggedIn(true);
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Registration Successful!',
+                        text: 'Welcome to Braca Store!',
+                        timer: 2000,
+                        showConfirmButton: false
+                    });
+                    navigate("/");
+                }
+            }
+        } catch (error) {
+            // Handle validation errors
+            let errorMessage = error.message || 'An error occurred. Please try again.';
+            
+            // If error has errors array (validation errors), show them
+            if (error.errors && Array.isArray(error.errors)) {
+                errorMessage = error.errors.join('\n');
+            }
+            
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: errorMessage,
+                html: error.errors && Array.isArray(error.errors) 
+                    ? '<ul style="text-align: left;"><li>' + error.errors.join('</li><li>') + '</li></ul>'
+                    : errorMessage
+            });
+        } finally {
+            setLoading(false);
+        }
+    };
+
     return (
         <div className="container d-flex justify-content-center align-items-center vh-100">
             <div className="row w-100 shadow-lg rounded overflow-hidden">
@@ -24,20 +106,70 @@ function Login({ setIsLoggedIn, isLoggedIn }) {
                     <div className="text-center mb-4">
                         <h2 className="fw-bold text-danger">{isLoggedIn ? "Login" : "Register"}</h2>
                     </div>
-                    <form>
+                    <form onSubmit={handleSubmit}>
                         <div className="mb-3">
-                            <input type="text" className="form-control" placeholder="Username" required />
-                        </div>
-                        <div className="mb-3">
-                            <input type="password" className="form-control" placeholder="Password" required />
+                            <input 
+                                type="text" 
+                                className="form-control" 
+                                placeholder="Username" 
+                                value={username}
+                                onChange={(e) => setUsername(e.target.value)}
+                                required 
+                            />
                         </div>
                         {!isLoggedIn && (
                             <div className="mb-3">
-                                <input type="password" className="form-control" placeholder="Confirm Password" required />
+                                <input 
+                                    type="email" 
+                                    className="form-control" 
+                                    placeholder="Email" 
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                    required 
+                                />
                             </div>
                         )}
+                        <div className="mb-3">
+                            <input 
+                                type="password" 
+                                className="form-control" 
+                                placeholder="Password" 
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                required 
+                            />
+                        </div>
+                        {!isLoggedIn && (
+                            <>
+                                <div className="mb-3">
+                                    <input 
+                                        type="password" 
+                                        className="form-control" 
+                                        placeholder="Confirm Password" 
+                                        value={confirmPassword}
+                                        onChange={(e) => setConfirmPassword(e.target.value)}
+                                        required 
+                                    />
+                                </div>
+                                <div className="mb-3">
+                                    <input 
+                                        type="tel" 
+                                        className="form-control" 
+                                        placeholder="Phone (Optional)" 
+                                        value={phone}
+                                        onChange={(e) => setPhone(e.target.value)}
+                                    />
+                                </div>
+                            </>
+                        )}
                         <div className="d-grid">
-                            <input type="submit" className="btn btn-danger" value={isLoggedIn ? "Sign In" : "Sign Up"} />
+                            <button 
+                                type="submit" 
+                                className="btn btn-danger" 
+                                disabled={loading}
+                            >
+                                {loading ? "Processing..." : (isLoggedIn ? "Sign In" : "Sign Up")}
+                            </button>
                         </div>
                         <div className="text-center mt-3">
                             {isLoggedIn ? (

@@ -6,7 +6,7 @@ import carosal2 from "../images/carosal2.webp"
 import CategoriesSection from "../components/CategoriesSection";
 import {setProducts} from "../redux/productSlice"
 import {useSelector,useDispatch} from "react-redux"
-import mockData from "../assests/mockData"
+import { productsAPI } from "../services/api";
 import ProductCard from "../components/ProductCard";
 import About from "../components/About";
 import { Link } from "react-router-dom";
@@ -21,8 +21,29 @@ function Home (){
     const dispatch = useDispatch();
     const products=useSelector(state => state.product.products);
     useEffect(() =>{
-        dispatch(setProducts(mockData))
-    },[])
+        const fetchProducts = async () => {
+            try {
+                const response = await productsAPI.getAll({ limit: 9 });
+                if (response.success) {
+                    // Map backend products to frontend format
+                    const mappedProducts = response.products.map(product => ({
+                        id: product.id,
+                        name: product.name,
+                        image: product.image_url || `/images/top${product.id % 9 + 1}.png`,
+                        price: parseFloat(product.price),
+                        category: product.category
+                    }));
+                    dispatch(setProducts(mappedProducts));
+                }
+            } catch (error) {
+                console.error('Error fetching products:', error);
+                // Fallback to mock data if API fails
+                const mockData = require("../assests/mockData").default;
+                dispatch(setProducts(mockData));
+            }
+        };
+        fetchProducts();
+    }, [dispatch])
 return(
     <>
    

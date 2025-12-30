@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom"; // useLocation inside BrowserRouter
+import React, { useState, useEffect } from "react";
+import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import Footer from "./components/Footer";
 import Navbar from "./components/Navbar";
 import Home from "./pages/Home";
@@ -13,11 +13,28 @@ import ProductDetail from "./pages/ProductDetail";
 import CategoryPage from "./pages/CategoryPage";
 import Contact from "./pages/Contact";
 import Aboutt from "./pages/Aboutt";
+import AdminPanel from "./pages/AdminPanel";
+import { getToken, authAPI } from "./services/api";
 
 
 function App() {
   const [order, setOrder] = useState(null);
-  const [isLoggedIn, setIsLoggedIn] = useState(true);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  useEffect(() => {
+    // Check if user is logged in on app load
+    const token = getToken();
+    if (token) {
+      // Verify token by getting current user
+      authAPI.getCurrentUser()
+        .then(() => setIsLoggedIn(true))
+        .catch(() => {
+          // Token invalid, remove it
+          localStorage.removeItem('token');
+          setIsLoggedIn(false);
+        });
+    }
+  }, []);
 
   return (
     <BrowserRouter>
@@ -34,7 +51,7 @@ function MainApp({ isLoggedIn, setIsLoggedIn, order, setOrder }) {
   return (
     <>
       {/* Only render Navbar and Footer if it's not the login or register page */}
-      {!isLoginPage && <Navbar isLoggedIn={isLoggedIn} />}
+      {!isLoginPage && <Navbar isLoggedIn={isLoggedIn} setIsLoggedIn={setIsLoggedIn} />}
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/shop" element={<Shop />} />
@@ -48,6 +65,7 @@ function MainApp({ isLoggedIn, setIsLoggedIn, order, setOrder }) {
         <Route path="/category/:category" element={<CategoryPage />} />
         <Route path="/contact" element={<Contact />} />
         <Route path="/about" element={<Aboutt />} />
+        <Route path="/admin" element={<AdminPanel />} />
       </Routes>
       {/* Only render Footer if it's not the login or register page */}
       {!isLoginPage && <Footer />}
